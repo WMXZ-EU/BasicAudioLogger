@@ -5,6 +5,9 @@
 #include "core_pins.h"
 
 //==================== local uSD interface ========================================
+// this implementation used SdFs from Bill Greiman
+// which needs to be installed as local library 
+//
 #include "SdFs.h"
 
 // Preallocate 40MB file.
