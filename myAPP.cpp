@@ -94,11 +94,12 @@ ACQ_Parameters_s acqParameters = { 120, 60, 180, 0, 12, 12, 24 };
  * type "int16_t" is compatible with stock AudioStream
  */
 #define MQUEU 550
-#if (ACQ == _ADC_0) | (ACQ == _ADC_D)
+#if (ACQ == _ADC_0) || (ACQ == _ADC_D)
   #include "input_adc.h"
   AudioInputAnalog    acq(ADC_PIN);
   #include "m_queue.h"
   mRecordQueue<int16_t, MQUEU> queue1;
+  
   AudioConnection     patchCord1(acq, queue1);
 
 #elif ACQ == _ADC_S
@@ -109,6 +110,7 @@ ACQ_Parameters_s acqParameters = { 120, 60, 180, 0, 12, 12, 24 };
 	#include "audio_multiplex.h"
   static void myUpdate(void) { queue1.update(); }
   AudioStereoMultiplex    mux1((Fxn_t)myUpdate());
+  
   AudioConnection     patchCord1(acq,0, mux1,0);
   AudioConnection     patchCord2(acq,1, mux1,1);
   AudioConnection     patchCord3(mux1, queue1);
@@ -121,6 +123,7 @@ ACQ_Parameters_s acqParameters = { 120, 60, 180, 0, 12, 12, 24 };
 	#include "audio_multiplex.h"
   static void myUpdate(void) { queue1.update(); }
   AudioStereoMultiplex  mux1((Fxn_t)myUpdate());
+  
   AudioConnection     patchCord1(acq,0, mux1,0);
   AudioConnection     patchCord2(acq,1, mux1,1);
   AudioConnection     patchCord3(mux1, queue1);
@@ -132,8 +135,8 @@ ACQ_Parameters_s acqParameters = { 120, 60, 180, 0, 12, 12, 24 };
   mRecordQueue<int16_t, MQUEU> queue1;
   #include "audio_multiplex.h"
   static void myUpdate(void) { queue1.update(); }
-
   AudioQuadMultiplex    mux1((Fxn_t)myUpdate);
+  
   AudioConnection     patchCord1(acq,0, mux1,0);
   AudioConnection     patchCord2(acq,1, mux1,1);
   AudioConnection     patchCord3(acq,2, mux1,2);
