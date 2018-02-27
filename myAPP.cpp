@@ -40,6 +40,11 @@
  */
 #include "core_pins.h"
 #define F_SAMP 384000 // desired sampling frequency
+/*
+ * NOTE: changing frequency impacts the macros 
+ *      AudioProcessorUsage and AudioProcessorUsageMax
+ * defined in stock AudioStream.h
+ */
 
 // possible ACQ interfaces
 #define _ADC_0		0	// single ended ADC0

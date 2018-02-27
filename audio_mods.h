@@ -22,6 +22,12 @@
 #ifndef _AUDIO_MODS_H
 #define _AUDIO_MODS_H
 /*
+ * NOTE: changing frequency impacts the macros 
+ *      AudioProcessorUsage and AudioProcessorUsageMax
+ * defined in stock AudioStream.h
+ */
+ 
+/*
  * -------------------mods for changing ADC sampling frequency-------------------------- 
  * 
  * following Mark Butcher: https://community.nxp.com/thread/434148
