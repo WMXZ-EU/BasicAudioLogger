@@ -1,5 +1,5 @@
 # BasicAudioLogger
-Basic framework for logging audio to uSD on T3.5/T3.6
+Basic framework for logging audio to uSD on T3.6 (T3.5 possible but not tested)
 # supports 
 ## buid-in 
 ADC, ADC_Stereo
