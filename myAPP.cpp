@@ -236,15 +236,21 @@ void loop() {
  }
  
  // some statistics on progress
- static uint32_t t0;
+ static uint32_t loopCount=0;
+ static uint32_t t0=0;
  if(millis()>t0+1000)
- {  Serial.printf("loop: %4d %5d;",uSD.getNbuf(),AudioMemoryUsageMax());
+ {  Serial.printf("loop: &5d %4d %5d;",
+          loopCount, uSD.getNbuf(),AudioMemoryUsageMax());
+
   #if (ACQ==_ADC_0) | (ACQ==_ADC_D) | (ACQ==_ADC_S)
     Serial.printf("%5d %5d",PDB0_CNT, PDB0_MOD);
   #endif
     Serial.println();
     AudioMemoryUsageMaxReset();
     t0=millis();
+    loopCount=0;
  }
+  asm("wfi"); // to save some power switch off idle cpu
+
 }
 
