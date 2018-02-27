@@ -1,10 +1,32 @@
-/*
- * Basic High speed Stereo ADC logger
+/* Audio Logger for Teensy 3.6
+ * Copyright (c) 2018, Walter Zimmer
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice, development funding notice, and this permission
+ * notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+ 
+ /*
+ * Basic High speed audio logger
  * using Bill Greimans's SdFs on Teensy 3.6 
  * which must be downloaded from https://github.com/greiman/SdFs 
  * and installed as local library
  * 
- * uses Teensy Audio library for acquisition queuing 
+ * uses PJRC's Teensy Audio library for acquisition queuing 
  * audio tool ADC is modified to sample at other than 44.1 kHz
  * can use Stereo ADC (i.e. both ADCs of a Teensy)
  * single ADC may operate in differential mode
@@ -12,7 +34,8 @@
  * audio tool I2S is modified to sample at other than 44.1 kHz
  * can use quad I2S
  *
- * allow scheduled acquisition with hibernate during off times
+ * V1 (27-Feb-2018): original version
+ *          Feature: allow scheduled acquisition with hibernate during off times
  * 
  */
 #include "core_pins.h"
@@ -65,6 +88,10 @@ ACQ_Parameters_s acqParameters = { 120, 60, 180, 0, 12, 12, 24 };
  * to avoid loading stock SD library
  * NO Audio.h is called but required header files are called directly
  * the custom multiplex object expects the 'link' to queue update function
+ * 
+ * PJRC's record_queue is modified to allow variable queue size
+ * use if different data type requires modification to AudioStream
+ * type "int16_t" is compatible with stock AudioStream
  */
 #define MQUEU 550
 #if (ACQ == _ADC_0) | (ACQ == _ADC_D)
@@ -73,21 +100,22 @@ ACQ_Parameters_s acqParameters = { 120, 60, 180, 0, 12, 12, 24 };
   #include "m_queue.h"
   mRecordQueue<int16_t, MQUEU> queue1;
   AudioConnection     patchCord1(acq, queue1);
+
 #elif ACQ == _ADC_S
   #include "input_adcs.h"
   AudioInputAnalogStereo  acq(ADC_PIN1,ADC_PIN2);
 	#include "m_queue.h"
-	mRecordQueue<MQUEU> queue1;
+	mRecordQueue<int16_t, MQUEU> queue1;
 	#include "audio_multiplex.h"
   static void myUpdate(void) { queue1.update(); }
   AudioStereoMultiplex    mux1((Fxn_t)myUpdate());
   AudioConnection     patchCord1(acq,0, mux1,0);
   AudioConnection     patchCord2(acq,1, mux1,1);
   AudioConnection     patchCord3(mux1, queue1);
+
 #elif ACQ == _I2S
   #include "input_i2s.h"
   AudioInputI2S         acq;
-
 	#include "m_queue.h"
 	mRecordQueue<int16_t, MQUEU> queue1;
 	#include "audio_multiplex.h"
@@ -96,8 +124,8 @@ ACQ_Parameters_s acqParameters = { 120, 60, 180, 0, 12, 12, 24 };
   AudioConnection     patchCord1(acq,0, mux1,0);
   AudioConnection     patchCord2(acq,1, mux1,1);
   AudioConnection     patchCord3(mux1, queue1);
-#elif ACQ == _I2S_QUAD
 
+#elif ACQ == _I2S_QUAD
   #include "input_i2s_quad.h"
   AudioInputI2SQuad     acq;
   #include "m_queue.h"
@@ -115,6 +143,7 @@ ACQ_Parameters_s acqParameters = { 120, 60, 180, 0, 12, 12, 24 };
   #error "invalid acquisition device"
 #endif
 
+// private 'library' included directly into sketch
 #include "audio_mods.h"
 #include "audio_logger_if.h"
 #include "audio_hibernate.h"
