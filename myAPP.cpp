@@ -225,6 +225,11 @@ void setup() {
     // typical shift value is between 8 and 12 as lower bits are only noise
     int16_t nbits=10; 
     acq.digitalShift(nbits); 
+    //
+    // simple threshhold detector
+    // data are sigle pole high-pass filtered and squared
+    // threshold is linear power value
+    process1.setThreshold(-1); // "-1" passes all data
   #endif
 
   queue1.begin();
