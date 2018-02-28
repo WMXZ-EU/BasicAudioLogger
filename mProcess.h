@@ -27,7 +27,7 @@
 
 #include "AudioStream.h"
 
-#define MIN_BLOCKS 2 // defines min number of blocks to be send after detection
+#define MIN_BLOCKS 3 // defines min number of blocks to be send after detection
 
 int32_t aux[AUDIO_BLOCK_SAMPLES];
 
