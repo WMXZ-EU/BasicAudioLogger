@@ -74,9 +74,9 @@ void mProcess::update(void)
   { haveSignal--;
     transmit(out1,0);
     transmit(out2,1);
+  }
     release(out1);
     release(out2);
-  }
 }
 
  #endif
