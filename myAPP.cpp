@@ -39,7 +39,7 @@
  * 
  */
 #include "core_pins.h"
-#define F_SAMP 384000 // desired sampling frequency
+#define F_SAMP 48000 // desired sampling frequency
 /*
  * NOTE: changing frequency impacts the macros 
  *      AudioProcessorUsage and AudioProcessorUsageMax
@@ -50,10 +50,11 @@
 #define _ADC_0		0	// single ended ADC0
 #define _ADC_D		1	// differential ADC0
 #define _ADC_S		2	// stereo ADC0 and ADC1
-#define _I2S		3	// I2S (stereo audio)
-#define _I2S_QUAD	4	// I2S (quad audio)
+#define _I2S		3	// I2S (16 bit stereo audio)
+#define _I2S_32   4 // I2S (32 bit stereo audio)
+#define _I2S_QUAD	5	// I2S (16 bit quad audio)
 
-#define ACQ _I2S_QUAD	// selected acquisition interface
+#define ACQ _I2S_32	// selected acquisition interface
 
 // For ADC SE pins can be changed
 #if ACQ == _ADC_0
@@ -71,6 +72,8 @@
 // scheduled acquisition
 // T1 to T3 are increasing hours, T4 can be before or after midnight
 // choose for continuous recording {0,12,12,24}
+// if ar > on the do dutycycle, i.e.sleep between on and ar seconds
+//
 typedef struct
 {	uint16_t on;	// acquisition on time in seconds
 	uint16_t ad;	// acquisition file size in seconds
@@ -85,7 +88,7 @@ typedef struct
 // sleep for 60 s (to reach 180 s acquisition interval)
 // acquire whole day (from midnight to noon and noot to midnight)
 //
-ACQ_Parameters_s acqParameters = { 120, 60, 180, 0, 12, 12, 24 };
+ACQ_Parameters_s acqParameters = { 120, 60, 100, 0, 12, 12, 24 };
 
 //==================== Audio interface ========================================
 /*
@@ -114,7 +117,7 @@ ACQ_Parameters_s acqParameters = { 120, 60, 180, 0, 12, 12, 24 };
 	mRecordQueue<int16_t, MQUEU> queue1;
 	#include "audio_multiplex.h"
   static void myUpdate(void) { queue1.update(); }
-  AudioStereoMultiplex    mux1((Fxn_t)myUpdate());
+  AudioStereoMultiplex    mux1((Fxn_t)myUpdate);
   
   AudioConnection     patchCord1(acq,0, mux1,0);
   AudioConnection     patchCord2(acq,1, mux1,1);
@@ -127,7 +130,20 @@ ACQ_Parameters_s acqParameters = { 120, 60, 180, 0, 12, 12, 24 };
 	mRecordQueue<int16_t, MQUEU> queue1;
 	#include "audio_multiplex.h"
   static void myUpdate(void) { queue1.update(); }
-  AudioStereoMultiplex  mux1((Fxn_t)myUpdate());
+  AudioStereoMultiplex  mux1((Fxn_t)myUpdate);
+  
+  AudioConnection     patchCord1(acq,0, mux1,0);
+  AudioConnection     patchCord2(acq,1, mux1,1);
+  AudioConnection     patchCord3(mux1, queue1);
+
+#elif ACQ == _I2S_32
+  #include "i2s_32.h"
+  I2S_32         acq;
+  #include "m_queue.h"
+  mRecordQueue<int16_t, MQUEU> queue1;
+  #include "audio_multiplex.h"
+  static void myUpdate(void) { queue1.update(); }
+  AudioStereoMultiplex  mux1((Fxn_t)myUpdate);
   
   AudioConnection     patchCord1(acq,0, mux1,0);
   AudioConnection     patchCord2(acq,1, mux1,1);
@@ -191,10 +207,17 @@ void setup() {
 
   #if (ACQ == _ADC_0) | (ACQ == _ADC_D) | (ACQ == _ADC_S)
     ADC_modification(F_SAMP,DIFF);
-  #elif (ACQ == _I2S)
+  #elif ((ACQ == _I2S) | (ACQ == _I2S_32))
     I2S_modification(F_SAMP,32);
   #elif (ACQ == _I2S_QUAD)
     I2S_modification(F_SAMP,16); // I2S_Quad not modified for 32 bit
+  #endif
+  #if(ACQ == _I2S_32)
+    // shift I2S data right by 8 bits to move 24 bit ADC data to LSB 
+    // the lower 16 bit are always maintained for further processing
+    // typical shift value is between 8 and 12 as lower bits are only noise
+    int16_t nbits=10; 
+    acq.digitalShift(nbits); 
   #endif
 
   queue1.begin();
@@ -246,8 +269,9 @@ void loop() {
  // some statistics on progress
  static uint32_t loopCount=0;
  static uint32_t t0=0;
+ loopCount++;
  if(millis()>t0+1000)
- {  Serial.printf("loop: &5d %4d %5d;",
+ {  Serial.printf("loop: %5d %4d %5d;",
           loopCount, uSD.getNbuf(),AudioMemoryUsageMax());
 
   #if (ACQ==_ADC_0) | (ACQ==_ADC_D) | (ACQ==_ADC_S)

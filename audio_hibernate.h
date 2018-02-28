@@ -183,8 +183,8 @@ int16_t checkDutyCycle(ACQ_Parameters_s *acqParameters,int16_t flag)
       uint16_t t_on = acqParameters->on;
       uint16_t t_dur = acqParameters->ad;
       uint16_t t_rep = acqParameters->ar;
-  
-      if ((tt - t_rec) >= t_on)
+
+      if ((t_rep>t_on) && ((tt - t_rec) >= t_on))
       { // need to stop
         if (flag == 0) // acquisition is closed, shut down 
         {
