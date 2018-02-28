@@ -139,15 +139,22 @@ ACQ_Parameters_s acqParameters = { 120, 60, 100, 0, 12, 12, 24 };
 #elif ACQ == _I2S_32
   #include "i2s_32.h"
   I2S_32         acq;
+  
   #include "m_queue.h"
   mRecordQueue<int16_t, MQUEU> queue1;
+  
   #include "audio_multiplex.h"
   static void myUpdate(void) { queue1.update(); }
   AudioStereoMultiplex  mux1((Fxn_t)myUpdate);
+
+  #include "mProcess.h"
+  mProcess process1;
   
-  AudioConnection     patchCord1(acq,0, mux1,0);
-  AudioConnection     patchCord2(acq,1, mux1,1);
-  AudioConnection     patchCord3(mux1, queue1);
+  AudioConnection     patchCord1(acq,0, process1,0);
+  AudioConnection     patchCord2(acq,1, process1,1);
+  AudioConnection     patchCord3(process1,0, mux1,0);
+  AudioConnection     patchCord4(process1,1, mux1,1);
+  AudioConnection     patchCord5(mux1, queue1);
 
 #elif ACQ == _I2S_QUAD
   #include "input_i2s_quad.h"
