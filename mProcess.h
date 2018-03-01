@@ -52,6 +52,8 @@ private:
   int32_t maxVal, threshold;
   
   audio_block_t *out1, *out2;
+
+  uint32_t blockCount;
 };
  
 void mProcess::begin(void)
@@ -60,6 +62,7 @@ void mProcess::begin(void)
   threshold=-1;
   out1=NULL;
   out2=NULL;
+  blockCount=0;
 }
 
 inline void mDiff(int32_t *aux, int16_t *inp, int16_t ndat, int16_t old)
@@ -82,6 +85,9 @@ void mProcess::update(void)
   audio_block_t *inp1, *inp2, *tmp1, *tmp2;
   inp1=receiveReadOnly(0);
   inp2=receiveReadOnly(1);
+  if(!inp1 && !inp2) return;
+  blockCount++;
+  
   tmp1=allocate();
   tmp2=allocate();
 
@@ -126,9 +132,9 @@ void mProcess::update(void)
   { haveSignal=MIN_BLOCKS;
   }
   if(haveSignal>0)
-  { if(isFirst) // flag new data block (corrupting the firs two words with millis timestamp)
+  { if(isFirst) // flag new data block (corrupting the first two words with blockCount)
     { if(out1) {out1->data[0]=-1; out1->data[1]=-1;}
-      if(out2) {*(uint32_t*)(out2->data) = millis();}
+      if(out2) {*(uint32_t*)(out2->data) = blockCount;}
       isFirst=0;
     }
     if(out1) transmit(out1,0);
@@ -137,7 +143,7 @@ void mProcess::update(void)
   // transmit anyway a single buffer
   if((haveSignal<0) && ((watchdog % MIN_DELAY)==0))
   { if(out1) {out1->data[0]=-1; out1->data[1]=-1;}
-    if(out2) {*(uint32_t*)(out2->data) = millis();}
+    if(out2) {*(uint32_t*)(out2->data) = blockCount;}
     if(out1) transmit(out1,0);
     if(out2) transmit(out2,1);
   }
@@ -145,6 +151,7 @@ void mProcess::update(void)
   // reduce haveSignal to a minimal value providing the possibility of a guard window
   // between two detections
   // increment a watchdog counter that allows regular transmisson of noise
+  // flag that next triggered transmission is first
   haveSignal--;
   if(haveSignal< -MIN_DELAY) { haveSignal = -MIN_DELAY; watchdog++; isFirst=1;}
   
