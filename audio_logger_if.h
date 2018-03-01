@@ -68,7 +68,6 @@ c_uSD uSD;
  */
 //_______________________________ For File Time settings _______________________
 #include <time.h>
-#define EPOCH_YEAR 2000 //T3 RTC
 #define EPOCH_YEAR 1970 //T3 RTC
 #define LEAP_YEAR(Y) (((EPOCH_YEAR+Y)>0) && !((EPOCH_YEAR+Y)%4) && ( ((EPOCH_YEAR+Y)%100) || !((EPOCH_YEAR+Y)%400) ) )
 static  const uint8_t monthDays[]={31,28,31,30,31,30,31,31,30,31,30,31}; 
@@ -96,7 +95,7 @@ struct tm seconds2tm(uint32_t tt)
   uint32_t days = 0;
   while((unsigned)(days += (LEAP_YEAR(year) ? 366 : 365)) <= tt) year++;
 
-  tx.tm_year = 1970+year; // year is NOT offset from 1970 
+  tx.tm_year = 1970+year; 
 
   // correct for last (actual) year
   days -= (LEAP_YEAR(year) ? 366 : 365);
