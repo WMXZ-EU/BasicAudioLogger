@@ -69,6 +69,7 @@ c_uSD uSD;
 //_______________________________ For File Time settings _______________________
 #include <time.h>
 #define EPOCH_YEAR 2000 //T3 RTC
+#define EPOCH_YEAR 1970 //T3 RTC
 #define LEAP_YEAR(Y) (((EPOCH_YEAR+Y)>0) && !((EPOCH_YEAR+Y)%4) && ( ((EPOCH_YEAR+Y)%100) || !((EPOCH_YEAR+Y)%400) ) )
 static  const uint8_t monthDays[]={31,28,31,30,31,30,31,31,30,31,30,31}; 
 

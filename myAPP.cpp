@@ -199,17 +199,25 @@ void ledOff(void)
     digitalWriteFast(13,LOW);
   #endif
 }
-
 //__________________________General Arduino Routines_____________________________________
+extern void *__rtc_localtime; // Arduino build process sets this
+extern void rtc_set(unsigned long t);
+
 void setup() {
   // put your setup code here, to run once:
 
 	AudioMemory (600);
   // check is it is our time to record
 //  checkDutyCycle(&acqParameters, -1); // will not return if if sould not continue with acquisition 
+
   ledOn();
   while(!Serial && (millis()<3000));
   ledOff();
+  //
+    uint32_t t0=rtc_get();
+    uint32_t t1=(uint32_t)&__rtc_localtime;
+    if((t1-t0)>100) rtc_set(t1);
+
   //
   uSD.init();
 
