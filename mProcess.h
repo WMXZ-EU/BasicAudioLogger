@@ -94,11 +94,11 @@ void mProcess::update(void)
   // store data and release input buffers
   for(int ii=0; ii< AUDIO_BLOCK_SAMPLES; ii++)
   {
-    tmp1->data[ii]=inp1->data[ii];
-    tmp2->data[ii]=inp2->data[ii];
+    if(inp1) tmp1->data[ii]=inp1->data[ii];
+    if(inp2) tmp2->data[ii]=inp2->data[ii];
   }
-  release(inp1);
-  release(inp2);
+  if(inp1) release(inp1);
+  if(inp2) release(inp2);
 
   // do here something useful with data 
   // example is a simple thresold detector on both channels
@@ -110,11 +110,10 @@ void mProcess::update(void)
   // first channel
   mDiff(aux, tmp1->data, ndat, out1? out1->data[ndat-1]: tmp1->data[0]);
   maxVal = mSig(aux, ndat, 0);
-
   // second channel
   mDiff(aux, tmp2->data, ndat, out2? out2->data[ndat-1]: tmp2->data[0]);
   maxVal = mSig(aux, ndat, maxVal);
-
+  //
   // if threshold detector fires, the open transmisssion of input data for Min_Blocks
   // due to use of temprary storage, the block before detection will be transmitted first
   // that means 
@@ -161,4 +160,4 @@ void mProcess::update(void)
   out2=tmp2;
 }
 
- #endif
+#endif
