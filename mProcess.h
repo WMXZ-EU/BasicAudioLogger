@@ -28,9 +28,10 @@
 #include "AudioStream.h"
 
 // adjust the following two definitions
-#define MIN_BLOCKS 3 // defines min number of blocks to be send after detection
-#define MIN_DELAY 30 // defines min number of blocks between two detections
+#define MIN_BLOCKS 375 // defines min number of blocks to be send after detection
+#define MIN_DELAY 400  // defines min number of blocks between two detections
 
+extern int16_t mustClose;
 //
 int32_t aux[AUDIO_BLOCK_SAMPLES];
 
@@ -139,14 +140,24 @@ void mProcess::update(void)
     if(out1) transmit(out1,0);
     if(out2) transmit(out2,1);
   }
-  // transmit anyway a single buffer
-  if((haveSignal<0) && ((watchdog % MIN_DELAY)==0))
-  { if(out1) {out1->data[0]=-1; out1->data[1]=-1;}
-    if(out2) {*(uint32_t*)(out2->data) = blockCount;}
-    if(out1) transmit(out1,0);
-    if(out2) transmit(out2,1);
-  }
   
+  // is we wanted single event file signal main program to close immediately if queue is empty
+  if(mustClose>=0) 
+  {
+    if(haveSignal==0) 
+    { mustClose = 1;
+    }
+  }
+  else
+  {
+    // transmit anyway a single buffer every now and then
+    if((haveSignal<0) && ((watchdog % MIN_DELAY)==0))
+    { if(out1) {out1->data[0]=-1; out1->data[1]=-1;}
+      if(out2) {*(uint32_t*)(out2->data) = blockCount;}
+      if(out1) transmit(out1,0);
+      if(out2) transmit(out2,1);
+    }
+  }  
   // reduce haveSignal to a minimal value providing the possibility of a guard window
   // between two detections
   // increment a watchdog counter that allows regular transmisson of noise

@@ -45,17 +45,13 @@ class mRecordQueue : public AudioStream
 public:
 	mRecordQueue(void) : AudioStream(1, inputQueueArray),
 		userblock(NULL), head(0), tail(0), enabled(0) { }
-	void begin(void) {
-		clear();
-		enabled = 1;
-	}
+   
+	void begin(void) { clear();	enabled = 1;}
+  void end(void) { enabled = 0; }
 	int available(void);
 	void clear(void);
 	T * readBuffer(void);
 	void freeBuffer(void);
-	void end(void) {
-		enabled = 0;
-	}
 	virtual void update(void);
 private:
 	audio_block_t *inputQueueArray[1];

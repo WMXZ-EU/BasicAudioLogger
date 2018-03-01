@@ -160,12 +160,12 @@ void I2S_32::update(void)
     // the DMA filled 2 blocks, so grab them and get the
     // 2 new blocks to the DMA, as quickly as possible
 
-#undef DO_SIMULATION
+//#define DO_SIMULATION
 #ifdef DO_SIMULATION
-    //simulate a signal every 100 buffers
+    //simulate a signal every 1000 buffers
       static uint32_t count=0;
       count++;
-      if(count==100)
+      if(count==1000)
       { block_left->data[64]=1<<10;
         block_right->data[32]=1<<9;
         count=0;

@@ -56,6 +56,9 @@ class c_uSD
     int16_t write(int16_t * data, int32_t ndat);
     uint16_t getNbuf(void) {return nbuf;}
     void setClosing(void) {closing=1;}
+
+    int16_t close(void);
+    
   private:
     int16_t state; // 0 initialized; 1 file open; 2 data written; 3 to be closed
     int16_t nbuf;
@@ -214,12 +217,18 @@ int16_t c_uSD::write(int16_t *data, int32_t ndat)
   
   if(state == 3)
   {
+    state=close();
+  }
+  return state;
+}
+
+int16_t c_uSD::close(void)
+{
     // close file
     file.truncate();
     file.close();
-
+    
     state=0;  // flag to open new file
-  }
-  return state;
+    return state;
 }
 #endif

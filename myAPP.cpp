@@ -91,6 +91,19 @@ typedef struct
 
 ACQ_Parameters_s acqParameters = { 120, 60, 100, 0, 12, 12, 24 };
 
+// the following global variable may be set from anywhere
+// if one wanted to close file immedately
+// mustClose = -1: disable this feature, close on time limit but finish to fill diskBuffer
+// mustcClose = 0: flush data and close exactly on time limit
+// mustClose = 1: flush data and close immediately
+#define MUST_CLOSE 0 // initial value (can be -1 or 0)
+int16_t mustClose = MUST_CLOSE;
+
+// threshold for audio trigger
+// threshold is linear power value (0 to 1<<31) "-1" passes all data
+#define THRESHOLD 1<<5
+
+
 //==================== Audio interface ========================================
 /*
  * standard Audio Interface
@@ -199,16 +212,19 @@ void ledOff(void)
     digitalWriteFast(13,LOW);
   #endif
 }
-//__________________________General Arduino Routines_____________________________________
+
+// following two lines are for adjusting RTC 
 extern void *__rtc_localtime; // Arduino build process sets this
 extern void rtc_set(unsigned long t);
+
+//__________________________General Arduino Routines_____________________________________
 
 void setup() {
   // put your setup code here, to run once:
 
 	AudioMemory (600);
   // check is it is our time to record
-//  checkDutyCycle(&acqParameters, -1); // will not return if if sould not continue with acquisition 
+  // checkDutyCycle(&acqParameters, -1); // will not return if if sould not continue with acquisition 
 
   ledOn();
   while(!Serial && (millis()<3000));
@@ -241,7 +257,7 @@ void setup() {
     // simple threshhold detector
     // data are sigle pole high-pass filtered and squared
     // threshold is linear power value
-    process1.setThreshold(1<<5); // "-1" passes all data
+    process1.setThreshold(THRESHOLD);
   #endif
 
   queue1.begin();
@@ -288,6 +304,22 @@ void loop() {
       state=uSD.write(diskBuffer,BUFFERSIZE); // this is blocking
   }
 //  if(!state) Serial.println("closed");
+ }
+ else
+ {  // queue is empty
+    // are we told to close or running out of time?
+    if((mustClose>0) || ((mustClose==0) && ((checkDutyCycle(&acqParameters, state))<0)))
+    { mustClose=MUST_CLOSE;
+
+      // write remaining data to disk and close file
+      if(state>=0)
+      { uint32_t nbuf = (uint32_t)(outptr-diskBuffer);
+//        Serial.println(nbuf);
+        state=uSD.write(diskBuffer,nbuf); // this is blocking
+        state=uSD.close();
+      }
+      outptr = diskBuffer;
+    }
  }
  
  // some statistics on progress
