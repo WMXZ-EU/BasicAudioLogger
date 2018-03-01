@@ -214,9 +214,10 @@ void setup() {
   while(!Serial && (millis()<3000));
   ledOff();
   //
-    uint32_t t0=rtc_get();
-    uint32_t t1=(uint32_t)&__rtc_localtime;
-    if((t1-t0)>100) rtc_set(t1);
+  // check if RTC clock is about the compile time clock
+  uint32_t t0=rtc_get();
+  uint32_t t1=(uint32_t)&__rtc_localtime;
+  if((t1-t0)>100) rtc_set(t1);
 
   //
   uSD.init();
