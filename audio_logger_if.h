@@ -38,8 +38,8 @@ const uint64_t PRE_ALLOCATE_SIZE = 40ULL << 20;
 #define SD_CONFIG SdioConfig(FIFO_SDIO)
 //#define SD_CONFIG SdioConfig(DMA_SDIO)
 
-#define MAXFILE 100
-#define MAXBUF 1000
+//#define MAXFILE 100
+//#define MAXBUF 1000
 #define BUFFERSIZE (16*1024)
 int16_t diskBuffer[BUFFERSIZE];
 int16_t *outptr = diskBuffer;

@@ -19,16 +19,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
- #ifndef MPROCESS_H
- #define MPROCESS_H
+#ifndef MPROCESS_H
+#define MPROCESS_H
 
 #include "kinetis.h"
 #include "core_pins.h"
 
 #include "AudioStream.h"
 
+// adjust the following two definitions
 #define MIN_BLOCKS 3 // defines min number of blocks to be send after detection
+#define MIN_DELAY 30 // defines min number of blocks between two detections
 
+//
 int32_t aux[AUDIO_BLOCK_SAMPLES];
 
 class mProcess: public AudioStream
@@ -39,6 +42,7 @@ public:
   void begin(void);
   virtual void update(void);
   void setThreshold(int32_t val) {threshold=val;}
+  int16_t getHaveSignal(void) {return haveSignal;}
   
 protected:  
   audio_block_t *inputQueueArray[2];
@@ -58,6 +62,21 @@ void mProcess::begin(void)
   out2=NULL;
 }
 
+inline void mDiff(int32_t *aux, int16_t *inp, int16_t ndat, int16_t old)
+{
+  aux[0]=(inp[0]-old);
+  for(int ii=1; ii< ndat; ii++) aux[ii]=(inp[ii] - inp[ii-1]);  
+}
+
+inline int32_t mSig(int32_t *aux, int16_t ndat, int32_t maxVal)
+{
+  for(int ii=0; ii< ndat; ii++)
+  { aux[ii] *= aux[ii];
+    if(aux[ii]>maxVal) maxVal=aux[ii];
+  }
+  return maxVal;
+}
+
 void mProcess::update(void)
 {
   audio_block_t *inp1, *inp2, *tmp1, *tmp2;
@@ -66,7 +85,7 @@ void mProcess::update(void)
   tmp1=allocate();
   tmp2=allocate();
 
-  // do here something usefull with data
+  // store data and release input buffers
   for(int ii=0; ii< AUDIO_BLOCK_SAMPLES; ii++)
   {
     tmp1->data[ii]=inp1->data[ii];
@@ -75,42 +94,60 @@ void mProcess::update(void)
   release(inp1);
   release(inp2);
 
+  // do here something useful with data 
+  // example is a simple thresold detector on both channels
   // simple high-pass filter (6 db/octave)
-  // fllowed by threshold detector
+  // followed by threshold detector
 
-  maxVal=0;
+  int16_t ndat = AUDIO_BLOCK_SAMPLES;
   //
   // first channel
-  if(out1)
-    aux[0]=(tmp1->data[0]-out1->data[AUDIO_BLOCK_SAMPLES-1]);
-  else
-    aux[0]=0;
-  for(int ii=1; ii< AUDIO_BLOCK_SAMPLES; ii++)
-  { aux[ii]=(tmp1->data[ii]-tmp1->data[ii-1]);
-    aux[ii] *= aux[ii];
-  }
-  for(int ii=0; ii< AUDIO_BLOCK_SAMPLES; ii++)
-  { if(aux[ii]>maxVal) maxVal=aux[ii];
-  }
+  mDiff(aux, tmp1->data, ndat, out1? out1->data[ndat-1]: tmp1->data[0]);
+  maxVal = mSig(aux, ndat, 0);
+
   // second channel
-  if(out2)
-    aux[0]=(tmp2->data[0]-out2->data[AUDIO_BLOCK_SAMPLES-1]);
-  else
-    aux[0]=0;
-  for(int ii=1; ii< AUDIO_BLOCK_SAMPLES; ii++)
-  { aux[ii]=(tmp2->data[ii]-tmp2->data[ii-1]);
-    aux[ii] *= aux[ii];
+  mDiff(aux, tmp2->data, ndat, out2? out2->data[ndat-1]: tmp2->data[0]);
+  maxVal = mSig(aux, ndat, maxVal);
+
+  // if threshold detector fires, the open transmisssion of input data for Min_Blocks
+  // due to use of temprary storage, the block before detection will be transmitted first
+  // that means 
+  // MIN_BLOCKS ==2 means both, pre-trigger and trigger blocks are transmitted
+  // MIN_BLOCKS ==3 means pre-trigger, trigger and a post-trigger blocks are transmitted
+  // MIN_BLOCKS ==4 means pre-trigger, trigger and 2 post-trigger blocks are transmitted
+  //
+  // Re-triggering is possible
+  // any detection during transmissions of blocks extends transmission
+  //
+  // 
+  static uint32_t watchdog=0;
+  static int16_t isFirst = 1;
+  if((haveSignal<=MIN_DELAY) && (maxVal>=threshold))
+  { haveSignal=MIN_BLOCKS;
   }
-  for(int ii=0; ii< AUDIO_BLOCK_SAMPLES; ii++)
-  { if(aux[ii]>maxVal) maxVal=aux[ii];
-  }
-  
-  if(maxVal>=threshold) haveSignal=MIN_BLOCKS;
-  if(haveSignal>=0)
-  { haveSignal--;
+  if(haveSignal>0)
+  { if(isFirst) // flag new data block (corrupting the firs two words with millis timestamp)
+    { if(out1) {out1->data[0]=-1; out1->data[1]=-1;}
+      if(out2) {*(uint32_t*)(out2->data) = millis();}
+      isFirst=0;
+    }
     if(out1) transmit(out1,0);
     if(out2) transmit(out2,1);
   }
+  // transmit anyway a single buffer
+  if((haveSignal<0) && ((watchdog % MIN_DELAY)==0))
+  { if(out1) {out1->data[0]=-1; out1->data[1]=-1;}
+    if(out2) {*(uint32_t*)(out2->data) = millis();}
+    if(out1) transmit(out1,0);
+    if(out2) transmit(out2,1);
+  }
+  
+  // reduce haveSignal to a minimal value providing the possibility of a guard window
+  // between two detections
+  // increment a watchdog counter that allows regular transmisson of noise
+  haveSignal--;
+  if(haveSignal< -MIN_DELAY) { haveSignal = -MIN_DELAY; watchdog++; isFirst=1;}
+  
   if(out1) release(out1);
   if(out2) release(out2);
   out1=tmp1;

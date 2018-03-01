@@ -70,24 +70,25 @@
 #endif
 
 // scheduled acquisition
-// T1 to T3 are increasing hours, T4 can be before or after midnight
-// choose for continuous recording {0,12,12,24}
-// if ar > on the do dutycycle, i.e.sleep between on and ar seconds
-//
 typedef struct
 {	uint16_t on;	// acquisition on time in seconds
 	uint16_t ad;	// acquisition file size in seconds
-	uint16_t ar;	// acquisition rate, i.e. every ar seconds
+	uint16_t ar;	// acquisition rate, i.e. every ar seconds (if < on then continuous acqisition)
 	uint16_t T1,T2; // first aquisition window (from T1 to T2) in Hours of day
 	uint16_t T3,T4; // second aquisition window (from T1 to T2) in Hours of day
 } ACQ_Parameters_s;
 
-// Example
-//ACQ_Parameters_s acqParameters = {120, 60, 180, 0, 12, 12, 24};
-// acquire 2 files each 60 s long (totalling 120 s)
-// sleep for 60 s (to reach 180 s acquisition interval)
-// acquire whole day (from midnight to noon and noot to midnight)
+// T1 to T3 are increasing hours, T4 can be before or after midnight
+// choose for continuous recording {0,12,12,24}
+// if "ar" > "on" the do dutycycle, i.e.sleep between on and ar seconds
 //
+// Example
+// ACQ_Parameters_s acqParameters = {120, 60, 180, 0, 12, 12, 24};
+//  acquire 2 files each 60 s long (totalling 120 s)
+//  sleep for 60 s (to reach 180 s acquisition interval)
+//  acquire whole day (from midnight to noon and noot to midnight)
+//
+
 ACQ_Parameters_s acqParameters = { 120, 60, 100, 0, 12, 12, 24 };
 
 //==================== Audio interface ========================================
@@ -214,12 +215,14 @@ void setup() {
 
   #if (ACQ == _ADC_0) | (ACQ == _ADC_D) | (ACQ == _ADC_S)
     ADC_modification(F_SAMP,DIFF);
-  #elif ((ACQ == _I2S) | (ACQ == _I2S_32))
+  #elif ((ACQ == _I2S))
     I2S_modification(F_SAMP,32);
   #elif (ACQ == _I2S_QUAD)
     I2S_modification(F_SAMP,16); // I2S_Quad not modified for 32 bit
   #endif
+  //
   #if(ACQ == _I2S_32)
+    I2S_modification(F_SAMP,32);
     // shift I2S data right by 8 bits to move 24 bit ADC data to LSB 
     // the lower 16 bit are always maintained for further processing
     // typical shift value is between 8 and 12 as lower bits are only noise
@@ -229,7 +232,7 @@ void setup() {
     // simple threshhold detector
     // data are sigle pole high-pass filtered and squared
     // threshold is linear power value
-    process1.setThreshold(-1); // "-1" passes all data
+    process1.setThreshold(1<<5); // "-1" passes all data
   #endif
 
   queue1.begin();
@@ -283,8 +286,8 @@ void loop() {
  static uint32_t t0=0;
  loopCount++;
  if(millis()>t0+1000)
- {  Serial.printf("loop: %5d %4d %5d;",
-          loopCount, uSD.getNbuf(),AudioMemoryUsageMax());
+ {  Serial.printf("loop: %5d %4d %4d %5d;",
+          loopCount, uSD.getNbuf(),process1.getHaveSignal(), AudioMemoryUsageMax());
 
   #if (ACQ==_ADC_0) | (ACQ==_ADC_D) | (ACQ==_ADC_S)
     Serial.printf("%5d %5d",PDB0_CNT, PDB0_MOD);

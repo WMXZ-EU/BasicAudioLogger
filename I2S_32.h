@@ -141,6 +141,7 @@ void I2S_32::isr32(void)
     }
   }
 }
+
 void I2S_32::update(void)
 {
   audio_block_t *new_left=NULL, *new_right=NULL, *out_left=NULL, *out_right=NULL;
@@ -158,6 +159,18 @@ void I2S_32::update(void)
   if (block_offset >= AUDIO_BLOCK_SAMPLES) {
     // the DMA filled 2 blocks, so grab them and get the
     // 2 new blocks to the DMA, as quickly as possible
+
+#undef DO_SIMULATION
+#ifdef DO_SIMULATION
+    //simulate a signal every 100 buffers
+      static uint32_t count=0;
+      count++;
+      if(count==100)
+      { block_left->data[64]=1<<10;
+        block_right->data[32]=1<<9;
+        count=0;
+      }
+#endif
     out_left = block_left;
     block_left = new_left;
     out_right = block_right;
@@ -169,7 +182,6 @@ void I2S_32::update(void)
     release(out_left);
     transmit(out_right, 1);
     release(out_right);
-//    Serial.print(".");
   } else if (new_left != NULL) {
     // the DMA didn't fill blocks, but we allocated blocks
     if (block_left == NULL) {
