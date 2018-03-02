@@ -43,6 +43,8 @@ typedef struct
 //
 int32_t aux[AUDIO_BLOCK_SAMPLES];
 
+extern uint32_t maxValue, maxNoise;
+
 class mProcess: public AudioStream
 {
 public:
@@ -75,7 +77,7 @@ private:
    uint32_t inhib;      // guard window (inhibit followon secondary detections)
    uint32_t nrep;       // noise only interval (
   //
-  uint32_t nest1, nest2;// background noise estimate
+  int32_t nest1, nest2;// background noise estimate
      
   audio_block_t *out1, *out2;
 };
@@ -110,8 +112,8 @@ inline void mDiff(int32_t *aux, int16_t *inp, int16_t ndat, int16_t old)
   for(int ii=1; ii< ndat; ii++) aux[ii]=(inp[ii] - inp[ii-1]);  
 }
 
-inline uint32_t mSig(int32_t *aux, int16_t ndat)
-{ uint32_t maxVal=0;
+inline int32_t mSig(int32_t *aux, int16_t ndat)
+{ int32_t maxVal=0;
   for(int ii=0; ii< ndat; ii++)
   { aux[ii] *= aux[ii];
     if(aux[ii]>maxVal) maxVal=aux[ii];
@@ -119,8 +121,8 @@ inline uint32_t mSig(int32_t *aux, int16_t ndat)
   return maxVal;
 }
 
-inline uint32_t avg(int32_t *aux, int16_t ndat)
-{ uint32_t avg=0;
+inline int32_t avg(int32_t *aux, int16_t ndat)
+{ int64_t avg=0;
   for(int ii=0; ii< ndat; ii++){ avg+=aux[ii]; }
   return avg/ndat;
 }
@@ -153,12 +155,12 @@ void mProcess::update(void)
   int16_t ndat = AUDIO_BLOCK_SAMPLES;
   //
   // first channel
-  mDiff(aux, tmp1->data, ndat, out1? out1->data[ndat-1]: tmp1->data[0]);
+  mDiff(aux, tmp1->data, ndat, 0);//out1? out1->data[ndat-1]: tmp1->data[0]);
   max1Val = mSig(aux, ndat);
   avg1Val = avg(aux, ndat);
   
   // second channel
-  mDiff(aux, tmp2->data, ndat, out2? out2->data[ndat-1]: tmp2->data[0]);
+  mDiff(aux, tmp2->data, ndat, 0);//out2? out2->data[ndat-1]: tmp2->data[0]);
   max2Val = mSig(aux, ndat);
   avg2Val = avg(aux, ndat);
   
@@ -177,9 +179,10 @@ void mProcess::update(void)
 
 //  static uint32_t watchdog=0;
   static int16_t isFirst = 1;
-  uint32_t det1 = (max1Val >= thresh*nest1);
-  uint32_t det2 = (max2Val >= thresh*nest2);
-  if((sigCount<=inhib) && ( det1 || det2)) sigCount=extr;
+  int32_t det1 = (max1Val > thresh*nest1);
+  int32_t det2 = (max2Val > thresh*nest2);
+
+  if((sigCount<=-inhib) && ( det1 || det2)) { sigCount=extr;}
   
   if(sigCount>0) // we have detection or still data to be transmitted
   { detCount++;
@@ -220,9 +223,16 @@ void mProcess::update(void)
   uint32_t winx;
   // change averaging window according to detection status
   if(sigCount<0) winx=win0; else winx=win1;
+    
+  nest1=(((int64_t)nest1)*winx+(int64_t)(avg1Val-nest1))/winx;
+  nest2=(((int64_t)nest2)*winx+(int64_t)(avg2Val-nest2))/winx;   
+
+  // for debugging
+  uint32_t tmp=(nest1>nest2)? nest1:nest2;
+  maxNoise=(tmp>maxNoise)? tmp:maxNoise;
   
-  nest1=((uint64_t)nest1*winx+(avg1Val-nest1))/winx;
-  nest2=((uint64_t)nest2*winx+(avg2Val-nest2))/winx;   
+  tmp=(max1Val>max2Val)? max1Val:max2Val;
+  maxValue=(tmp>maxValue)? tmp:maxValue;
 
   // clean up audio_blocks
   if(out1) release(out1);

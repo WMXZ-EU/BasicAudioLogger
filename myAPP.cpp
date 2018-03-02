@@ -107,10 +107,10 @@ typedef struct
    uint32_t win1;       // detection watchdog window (in units of audio blocks typicaly 10x win0)
    uint32_t extr;       // min extraction window
    uint32_t inhib;      // guard window (inhibit follow-on secondary detections)
-   uint32_t nrep;       // noise only interval (nrep <0 indicated no noise archiving)
+   uint32_t nrep;       // noise only interval (nrep =0  indicates no noise archiving)
 } SNIP_Parameters_s; 
 
-SNIP_Parameters_s snipParameters = { 1<<5, 10, 100, 375, 37, -74 };
+SNIP_Parameters_s snipParameters = { 1<<5, 1000, 10000, 375, 37, 0 };
 
 //==================== Audio interface ========================================
 /*
@@ -169,19 +169,21 @@ SNIP_Parameters_s snipParameters = { 1<<5, 10, 100, 375, 37, -74 };
   static void myUpdate(void) { queue1.update(); }
   AudioStereoMultiplex  mux1((Fxn_t)myUpdate);
 
-  #include "effect_delay.h"
-  AudioEffectDelay         delay1;
-  AudioEffectDelay         delay2;
+//  #include "effect_delay.h"
+//  AudioEffectDelay         delay1;
+//  AudioEffectDelay         delay2;
 
   #include "mProcess.h"
   mProcess process1(&snipParameters);
   
   AudioConnection     patchCord1(acq,0, process1,0);
   AudioConnection     patchCord2(acq,1, process1,1);
-  AudioConnection     patchCord3(acq,0, delay1,0);
-  AudioConnection     patchCord4(acq,1, delay2,0);
-  AudioConnection     patchCord5(delay1,0, mux1,0);
-  AudioConnection     patchCord6(delay2,0, mux1,1);
+  AudioConnection     patchCord5(process1,0, mux1,0);
+  AudioConnection     patchCord6(process1,1, mux1,1);
+//  AudioConnection     patchCord3(acq,0, delay1,0);
+//  AudioConnection     patchCord4(acq,1, delay2,0);
+//  AudioConnection     patchCord5(delay1,0, mux1,0);
+//  AudioConnection     patchCord6(delay2,0, mux1,1);
   AudioConnection     patchCord7(mux1, queue1);
 
 #elif ACQ == _I2S_QUAD
@@ -266,19 +268,20 @@ void setup() {
     // shift I2S data right by 8 bits to move 24 bit ADC data to LSB 
     // the lower 16 bit are always maintained for further processing
     // typical shift value is between 8 and 12 as lower bits are only noise
-    int16_t nbits=10; 
+    int16_t nbits=12; 
     acq.digitalShift(nbits); 
   #endif
 
-  #define DELAY 10.0f
-  delay1.delay(0, DELAY); // delay in ms
-  for(int ii=1; ii<8; ii++) delay1.disable(ii); 
-  delay2.delay(0, DELAY); // delay in ms
-  for(int ii=1; ii<8; ii++) delay2.disable(ii); 
+//  #define DELAY 10.0f
+//  delay1.delay(0, DELAY); // delay in ms
+//  for(int ii=1; ii<8; ii++) delay1.disable(ii); 
+//  delay2.delay(0, DELAY); // delay in ms
+//  for(int ii=1; ii<8; ii++) delay2.disable(ii); 
 
   queue1.begin();
 }
 
+uint32_t maxValue=0, maxNoise=0;
 void loop() {
   // put your main code here, to run repeatedly:
  static int16_t state=0; // 0: open new file, -1: last file
@@ -344,8 +347,9 @@ void loop() {
  static uint32_t t0=0;
  loopCount++;
  if(millis()>t0+1000)
- {  Serial.printf("loop: %5d %4d; %4d %4d %4d; %5d; ",
+ {  Serial.printf("loop: %5d %4d; %10u %10u %4d %4d %4d %4d; %5d; ",
           loopCount, uSD.getNbuf(),
+          maxValue, maxNoise, maxValue/maxNoise,
           process1.getSigCount(),process1.getDetCount(),process1.getNoiseCount(), 
           AudioMemoryUsageMax());
 
@@ -358,6 +362,8 @@ void loop() {
     loopCount=0;
     process1.resetDetCount();
     process1.resetNoiseCount();
+    maxValue=0;
+    maxNoise=0;
  }
   asm("wfi"); // to save some power switch off idle cpu
 
