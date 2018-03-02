@@ -217,9 +217,9 @@ int16_t checkDutyCycle(ACQ_Parameters_s *acqParameters,int16_t flag)
   if ((T3 > T4) && ((to >= T4) || to < T1)) // sleep after midnight
   {  nsec = (T1 * 3600 - tt % (24 * 3600));
   }
-  if(nsec>0)
-    setWakeupCallandSleep(nsec);
-    return 0; // will not happen, but keep compiler happy
+  if(nsec>0) setWakeupCallandSleep(nsec);
+    
+  return 0;
 }
 
 #endif

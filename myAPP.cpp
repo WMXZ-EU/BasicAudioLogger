@@ -96,13 +96,21 @@ ACQ_Parameters_s acqParameters = { 120, 60, 100, 0, 12, 12, 24 };
 // mustClose = -1: disable this feature, close on time limit but finish to fill diskBuffer
 // mustcClose = 0: flush data and close exactly on time limit
 // mustClose = 1: flush data and close immediately
+
 #define MUST_CLOSE 0 // initial value (can be -1 or 0)
 int16_t mustClose = MUST_CLOSE;
 
-// threshold for audio trigger
-// threshold is linear power value (0 to 1<<31) "-1" passes all data
-#define THRESHOLD 1<<5
+// snippet extraction modul
+typedef struct
+{  uint32_t thresh;     // power SNR for snippet detection
+   uint32_t win0;       // noise estimation window (in units of audio blocks)
+   uint32_t win1;       // detection watchdog window (in units of audio blocks typicaly 10x win0)
+   uint32_t extr;       // min extraction window
+   uint32_t inhib;      // guard window (inhibit follow-on secondary detections)
+   uint32_t nrep;       // noise only interval (nrep <0 indicated no noise archiving)
+} SNIP_Parameters_s; 
 
+SNIP_Parameters_s snipParameters = { 1<<5, 10, 100, 375, 37, -74 };
 
 //==================== Audio interface ========================================
 /*
@@ -161,14 +169,20 @@ int16_t mustClose = MUST_CLOSE;
   static void myUpdate(void) { queue1.update(); }
   AudioStereoMultiplex  mux1((Fxn_t)myUpdate);
 
+  #include "effect_delay.h"
+  AudioEffectDelay         delay1;
+  AudioEffectDelay         delay2;
+
   #include "mProcess.h"
-  mProcess process1;
+  mProcess process1(&snipParameters);
   
   AudioConnection     patchCord1(acq,0, process1,0);
   AudioConnection     patchCord2(acq,1, process1,1);
-  AudioConnection     patchCord3(process1,0, mux1,0);
-  AudioConnection     patchCord4(process1,1, mux1,1);
-  AudioConnection     patchCord5(mux1, queue1);
+  AudioConnection     patchCord3(acq,0, delay1,0);
+  AudioConnection     patchCord4(acq,1, delay2,0);
+  AudioConnection     patchCord5(delay1,0, mux1,0);
+  AudioConnection     patchCord6(delay2,0, mux1,1);
+  AudioConnection     patchCord7(mux1, queue1);
 
 #elif ACQ == _I2S_QUAD
   #include "input_i2s_quad.h"
@@ -213,7 +227,8 @@ void ledOff(void)
   #endif
 }
 
-// following two lines are for adjusting RTC 
+// following three lines are for adjusting RTC 
+extern unsigned long rtc_get(void);
 extern void *__rtc_localtime; // Arduino build process sets this
 extern void rtc_set(unsigned long t);
 
@@ -253,12 +268,13 @@ void setup() {
     // typical shift value is between 8 and 12 as lower bits are only noise
     int16_t nbits=10; 
     acq.digitalShift(nbits); 
-    //
-    // simple threshhold detector
-    // data are sigle pole high-pass filtered and squared
-    // threshold is linear power value
-    process1.setThreshold(THRESHOLD);
   #endif
+
+  #define DELAY 10.0f
+  delay1.delay(0, DELAY); // delay in ms
+  for(int ii=1; ii<8; ii++) delay1.disable(ii); 
+  delay2.delay(0, DELAY); // delay in ms
+  for(int ii=1; ii<8; ii++) delay2.disable(ii); 
 
   queue1.begin();
 }
@@ -268,7 +284,7 @@ void loop() {
  static int16_t state=0; // 0: open new file, -1: last file
 
  if(queue1.available())
- {
+ {  // have data on que
     if ((checkDutyCycle(&acqParameters, state))<0)  // this also triggers closing files and hibernating, if planned
     { uSD.setClosing();
 //      Serial.println(state);
@@ -308,15 +324,16 @@ void loop() {
  else
  {  // queue is empty
     // are we told to close or running out of time?
-    if((mustClose>0) || ((mustClose==0) && ((checkDutyCycle(&acqParameters, state))<0)))
-    { mustClose=MUST_CLOSE;
+    if( (mustClose>0) || 
+       ((mustClose==0) && ((checkDutyCycle(&acqParameters, state))<0)))
+    { mustClose=MUST_CLOSE; // reset mustClose flag
 
       // write remaining data to disk and close file
       if(state>=0)
       { uint32_t nbuf = (uint32_t)(outptr-diskBuffer);
-//        Serial.println(nbuf);
+        Serial.println(nbuf);
         state=uSD.write(diskBuffer,nbuf); // this is blocking
-        state=uSD.close();
+        state=uSD.close();          
       }
       outptr = diskBuffer;
     }
@@ -327,8 +344,10 @@ void loop() {
  static uint32_t t0=0;
  loopCount++;
  if(millis()>t0+1000)
- {  Serial.printf("loop: %5d %4d %4d %5d;",
-          loopCount, uSD.getNbuf(),process1.getHaveSignal(), AudioMemoryUsageMax());
+ {  Serial.printf("loop: %5d %4d; %4d %4d %4d; %5d; ",
+          loopCount, uSD.getNbuf(),
+          process1.getSigCount(),process1.getDetCount(),process1.getNoiseCount(), 
+          AudioMemoryUsageMax());
 
   #if (ACQ==_ADC_0) | (ACQ==_ADC_D) | (ACQ==_ADC_S)
     Serial.printf("%5d %5d",PDB0_CNT, PDB0_MOD);
@@ -337,6 +356,8 @@ void loop() {
     AudioMemoryUsageMaxReset();
     t0=millis();
     loopCount=0;
+    process1.resetDetCount();
+    process1.resetNoiseCount();
  }
   asm("wfi"); // to save some power switch off idle cpu
 

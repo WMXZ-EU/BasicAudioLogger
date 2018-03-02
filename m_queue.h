@@ -34,8 +34,6 @@
 #ifndef record_queue_h_
 #define record_queue_h_
 
-//#include "Arduino.h"
-//#include "../config.h"
 #include "AudioStream.h"
 
 //#define MQ 53
