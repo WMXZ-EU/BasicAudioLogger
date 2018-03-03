@@ -31,12 +31,12 @@ extern int16_t mustClose;
 /*
 // snippet extraction modul
 typedef struct
-{  uint32_t threshold;  // power SNR for snippet detection
-   uint32_t win0;       // noise estimation window (in units of audio blocks)
-   uint32_t win1;       // detection watchdog window (in units of audio blocks typicaly 10x win0)
-   uint32_t extr;       // min extraction window
-   uint32_t inhib;      // guard window (inhibit followon secondary detections)
-   uint32_t nrep;       // noise only interval
+{  int32_t threshold;  // power SNR for snippet detection
+   int32_t win0;       // noise estimation window (in units of audio blocks)
+   int32_t win1;       // detection watchdog window (in units of audio blocks typicaly 10x win0)
+   int32_t extr;       // min extraction window
+   int32_t inhib;      // guard window (inhibit followon secondary detections)
+   int32_t nrep;       // noise only interval
 } SNIP_Parameters_s; 
 */
 

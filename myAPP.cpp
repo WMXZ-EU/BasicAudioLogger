@@ -98,7 +98,7 @@ ACQ_Parameters_s acqParameters = { 120, 60, 100, 0, 12, 12, 24 };
 // mustClose = 1: flush data and close immediately
 
 #define MUST_CLOSE 0 // initial value (can be -1: ignore event trigger or 0: implement event trigger)
-int16_t mustClose;
+int16_t mustClose = MUST_CLOSE;
 
 // snippet extraction modul
 typedef struct
@@ -254,8 +254,6 @@ void setup() {
   if((t1-t0)>100) rtc_set(t1);
 
   //
-  mustClose=MUST_CLOSE;
-  //
   uSD.init();
 
   #if (ACQ == _ADC_0) | (ACQ == _ADC_D) | (ACQ == _ADC_S)
@@ -332,7 +330,7 @@ void loop() {
       // write remaining data to disk and close file
       if(state>=0)
       { uint32_t nbuf = (uint32_t)(outptr-diskBuffer);
-        Serial.println(nbuf);
+//        Serial.println(nbuf);
         state=uSD.write(diskBuffer,nbuf); // this is blocking
         state=uSD.close();          
       }
