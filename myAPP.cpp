@@ -123,7 +123,9 @@ SNIP_Parameters_s snipParameters = { 1<<5, 1000, 10000, 375, 37, 0 };
  * use if different data type requires modification to AudioStream
  * type "int16_t" is compatible with stock AudioStream
  */
-#define MQUEU 550
+#define MQUEU 550 // number of buffers in aquisition queue
+#define MDEL 30   // maximal delay in buffer counts (128/fs each; 128/48 = 2.5 ms each)
+
 #if (ACQ == _ADC_0) || (ACQ == _ADC_D)
   #include "input_adc.h"
   AudioInputAnalog    acq(ADC_PIN);
@@ -169,21 +171,20 @@ SNIP_Parameters_s snipParameters = { 1<<5, 1000, 10000, 375, 37, 0 };
   static void myUpdate(void) { queue1.update(); }
   AudioStereoMultiplex  mux1((Fxn_t)myUpdate);
 
-//  #include "effect_delay.h"
-//  AudioEffectDelay         delay1;
-//  AudioEffectDelay         delay2;
-
+  #include "m_delay.h"
+  mDelay<MDEL>  delay1(MDEL-1);
+  
   #include "mProcess.h"
   mProcess process1(&snipParameters);
   
   AudioConnection     patchCord1(acq,0, process1,0);
   AudioConnection     patchCord2(acq,1, process1,1);
-  AudioConnection     patchCord5(process1,0, mux1,0);
-  AudioConnection     patchCord6(process1,1, mux1,1);
-//  AudioConnection     patchCord3(acq,0, delay1,0);
-//  AudioConnection     patchCord4(acq,1, delay2,0);
-//  AudioConnection     patchCord5(delay1,0, mux1,0);
-//  AudioConnection     patchCord6(delay2,0, mux1,1);
+//  AudioConnection     patchCord5(process1,0, mux1,0);
+//  AudioConnection     patchCord6(process1,1, mux1,1);
+  AudioConnection     patchCord3(acq,0, delay1,0);
+  AudioConnection     patchCord4(acq,1, delay1,1);
+  AudioConnection     patchCord5(delay1,0, mux1,0);
+  AudioConnection     patchCord6(delay1,1, mux1,1);
   AudioConnection     patchCord7(mux1, queue1);
 
 #elif ACQ == _I2S_QUAD
@@ -274,12 +275,7 @@ void setup() {
     acq.digitalShift(nbits); 
   #endif
 
-//  #define DELAY 10.0f
-//  delay1.delay(0, DELAY); // delay in ms
-//  for(int ii=1; ii<8; ii++) delay1.disable(ii); 
-//  delay2.delay(0, DELAY); // delay in ms
-//  for(int ii=1; ii<8; ii++) delay2.disable(ii); 
-
+  delay1.setDelay(10); // 10 buffers (25 ms)
   queue1.begin();
 }
 
