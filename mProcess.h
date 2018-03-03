@@ -43,7 +43,7 @@ typedef struct
 //
 int32_t aux[AUDIO_BLOCK_SAMPLES];
 
-extern uint32_t maxValue, maxNoise;
+extern volatile uint32_t maxValue, maxNoise;
 
 class mProcess: public AudioStream
 {
