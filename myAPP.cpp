@@ -277,7 +277,7 @@ void setup() {
   queue1.begin();
 }
 
-uint32_t maxValue=0, maxNoise=0;
+volatile uint32_t maxValue=0, maxNoise=0; // possibly be updated outside
 void loop() {
   // put your main code here, to run repeatedly:
  static int16_t state=0; // 0: open new file, -1: last file
