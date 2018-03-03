@@ -97,17 +97,17 @@ ACQ_Parameters_s acqParameters = { 120, 60, 100, 0, 12, 12, 24 };
 // mustcClose = 0: flush data and close exactly on time limit
 // mustClose = 1: flush data and close immediately
 
-#define MUST_CLOSE 0 // initial value (can be -1 or 0)
-int16_t mustClose = MUST_CLOSE;
+#define MUST_CLOSE 0 // initial value (can be -1: ignore event trigger or 0: implement event trigger)
+int16_t mustClose;
 
 // snippet extraction modul
 typedef struct
-{  uint32_t thresh;     // power SNR for snippet detection
-   uint32_t win0;       // noise estimation window (in units of audio blocks)
-   uint32_t win1;       // detection watchdog window (in units of audio blocks typicaly 10x win0)
-   uint32_t extr;       // min extraction window
-   uint32_t inhib;      // guard window (inhibit follow-on secondary detections)
-   uint32_t nrep;       // noise only interval (nrep =0  indicates no noise archiving)
+{  int32_t thresh;     // power SNR for snippet detection
+   int32_t win0;       // noise estimation window (in units of audio blocks)
+   int32_t win1;       // detection watchdog window (in units of audio blocks typicaly 10x win0)
+   int32_t extr;       // min extraction window
+   int32_t inhib;      // guard window (inhibit follow-on secondary detections)
+   int32_t nrep;       // noise only interval (nrep =0  indicates no noise archiving)
 } SNIP_Parameters_s; 
 
 SNIP_Parameters_s snipParameters = { 1<<5, 1000, 10000, 375, 37, 0 };
@@ -252,6 +252,8 @@ void setup() {
   uint32_t t1=(uint32_t)&__rtc_localtime;
   if((t1-t0)>100) rtc_set(t1);
 
+  //
+  mustClose=MUST_CLOSE;
   //
   uSD.init();
 

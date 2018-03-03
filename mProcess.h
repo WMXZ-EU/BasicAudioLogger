@@ -70,12 +70,12 @@ private:
   uint32_t blockCount;
   uint32_t watchdog;
   //
-   uint32_t thresh;  // power SNR for snippet detection
-   uint32_t win0;       // noise estimation window (in units of audio blocks)
-   uint32_t win1;       // detection watchdog window (in units of audio blocks typicaly 10x win0)
-   uint32_t extr;       // min extraction window 
-   uint32_t inhib;      // guard window (inhibit followon secondary detections)
-   uint32_t nrep;       // noise only interval (
+   int32_t thresh;  // power SNR for snippet detection
+   int32_t win0;       // noise estimation window (in units of audio blocks)
+   int32_t win1;       // detection watchdog window (in units of audio blocks typicaly 10x win0)
+   int32_t extr;       // min extraction window 
+   int32_t inhib;      // guard window (inhibit followon secondary detections)
+   int32_t nrep;       // noise only interval (
   //
   int32_t nest1, nest2;// background noise estimate
      
@@ -182,7 +182,7 @@ void mProcess::update(void)
   int32_t det1 = (max1Val > thresh*nest1);
   int32_t det2 = (max2Val > thresh*nest2);
 
-  if((sigCount<=-inhib) && ( det1 || det2)) { sigCount=extr;}
+  if((sigCount<=-inhib) && ( det1 || det2)) {sigCount=extr;}
   
   if(sigCount>0) // we have detection or still data to be transmitted
   { detCount++;
@@ -196,9 +196,9 @@ void mProcess::update(void)
     if(out1) transmit(out1,0);
     if(out2) transmit(out2,1);
   }
-  
+  //
   // is we wanted single event file signal main program to close immediately if queue is empty
-  if((sigCount==0) && (mustClose==0)) mustClose=1;
+  if((sigCount==0) && (mustClose==0)) { Serial.println("mustClose"); mustClose=1;}
 
   if(mustClose<=0)
   { // transmit anyway a single buffer every now and then 
@@ -212,7 +212,7 @@ void mProcess::update(void)
     }
   }  
   
-  // reduce haveSignal to a minimal value providing the possibility of a guard window
+  // reduce sigCount to a minimal value providing the possibility of a guard window
   // between two detections
   // increment a watchdog counter that allows regular transmisson of noise
   // flag that next triggered transmission is first
